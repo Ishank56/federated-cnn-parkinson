@@ -5,6 +5,8 @@ from hydra.core.hydra_config import HydraConfig
 import flwr as fl
 from omegaconf import DictConfig, OmegaConf
 
+import tensorflow as tf
+
 from dataset import prepare_dataset
 
 from client import generate_client_fn
