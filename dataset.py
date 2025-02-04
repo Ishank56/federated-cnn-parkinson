@@ -1,44 +1,38 @@
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
 import torch
+from torch.utils.data import DataLoader, TensorDataset
 
-from torchvision.datasets import MNIST
-from torchvision.transforms import ToTensor, Normalize,Compose
-from torch.utils.data import random_split, DataLoader
-def get_mnist(data_path: str='./data'):
+def prepare_dataset(batch_size=32):
+    # Load the dataset
+    df = pd.read_csv('Parkinsson disease.csv')
+
+    # Exclude the 'name' column from the features
+    X = df.drop(columns=['name', 'status']).values
+    y = df['status'].values
+
+    # Standardize the features
+    scaler = StandardScaler()
+    X = scaler.fit_transform(X)
+
+    # Split the data into training, validation, and test sets
+    X_train, X_temp, y_train, y_temp = train_test_split(X, y, test_size=0.4, random_state=42)
+    X_val, X_test, y_val, y_test = train_test_split(X_temp, y_temp, test_size=0.5, random_state=42)
+
+    # Convert to PyTorch tensors
+    X_train = torch.tensor(X_train, dtype=torch.float32)
+    y_train = torch.tensor(y_train, dtype=torch.long)
+    X_val = torch.tensor(X_val, dtype=torch.float32)
+    y_val = torch.tensor(y_val, dtype=torch.long)
+    X_test = torch.tensor(X_test, dtype=torch.float32)
+    y_test = torch.tensor(y_test, dtype=torch.long)
+
+    # Create DataLoaders
+    train_loader = DataLoader(TensorDataset(X_train, y_train), batch_size=batch_size, shuffle=True)
+    val_loader = DataLoader(TensorDataset(X_val, y_val), batch_size=batch_size)
+    test_loader = DataLoader(TensorDataset(X_test, y_test), batch_size=batch_size)
+
+    input_dim = X_train.shape[1]
     
-
-    tr=Compose((ToTensor(), Normalize((0.1307,), (0.3081))))
-
-    trainset=MNIST(data_path, train=True, download=True, transform=tr)
-    testset=MNIST(data_path, train=True, download=True, transform=tr)
-
-
-
-    return trainset, testset
-def prepare_dataset(num_partitions: int, batch_size: int, val_ratio: float = 0.1):
-    trainset, testset = get_mnist()
-
-    # Split trainset into 'num_partitions' trainsets
-    num_images = len(trainset) // num_partitions
-    partition_len = [num_images] * num_partitions
-
-    trainsets = random_split(trainset, partition_len, torch.Generator().manual_seed(2023))
-
-    # Initialize lists to store train and validation loaders
-    trainloaders = []
-    valloaders = []
-
-    # Create dataloaders with train+val support
-    for trainset_ in trainsets:
-        num_total = len(trainset_)
-        num_val = int(val_ratio * num_total)
-        num_train = num_total - num_val
-
-        for_train, for_val = random_split(trainset_, [num_train, num_val], torch.Generator().manual_seed(2023))
-
-        trainloaders.append(DataLoader(for_train, batch_size=batch_size, shuffle=True, num_workers=2))
-        valloaders.append(DataLoader(for_val, batch_size=batch_size, shuffle=False, num_workers=2))
-
-    testloader = DataLoader(testset, batch_size=120)
-
-    return trainloaders, valloaders, testloader
-  
+    return train_loader, val_loader, test_loader, input_dim

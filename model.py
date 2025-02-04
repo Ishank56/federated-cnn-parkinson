@@ -2,52 +2,43 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-class Net(nn.Module):
-    def __init__(self, num_classes: int) -> None:
-        super(Net, self).__init__()
-        self.conv1 = nn.Conv2d(1, 6, 5)
-        self.pool = nn.MaxPool2d(2, 2)
-        self.conv2 = nn.Conv2d(6, 16, 5)
-        self.fc1 = nn.Linear(16 * 4 * 4, 120)
-        self.fc2 = nn.Linear(120, 84)
-        self.fc3 = nn.Linear(84, num_classes)
+class ParkinsonsNet(nn.Module):
+    def __init__(self, input_dim):
+        super(ParkinsonsNet, self).__init__()
+        self.fc1 = nn.Linear(input_dim, 128)
+        self.fc2 = nn.Linear(128, 64)
+        self.fc3 = nn.Linear(64, 2)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.pool(F.relu(self.conv1(x)))
-        x = self.pool(F.relu(self.conv2(x)))
-        x = x.view(-1, 16 * 4 * 4)
+    def forward(self, x):
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
         return x
 
-
-def train(net, trainloader, optimizer, epochs, device: str):
-    """Train the network on the training set."""
-    criterion = torch.nn.CrossEntropyLoss()
-    # optimizer = torch.optim.Adam(net.parameters())
-    net.train()
-    net.to(device)
-    for _ in range(epochs):
-        for images, labels in trainloader:
-            images, labels = images.to(device), labels.to(device)
+def train(model, train_loader, optimizer, epochs, device):
+    model.train()
+    criterion = nn.CrossEntropyLoss()
+    for epoch in range(epochs):
+        for X_batch, y_batch in train_loader:
+            X_batch, y_batch = X_batch.to(device), y_batch.to(device)
             optimizer.zero_grad()
-            loss = criterion(net(images), labels)
+            outputs = model(X_batch)
+            loss = criterion(outputs, y_batch)
             loss.backward()
             optimizer.step()
 
-def test(net, testloader, device: str):
-    """Evaluate the network on the entire test set."""
-    criterion = torch.nn.CrossEntropyLoss()
-    correct, total, loss = 0, 0, 0.0
-    net.eval()
-    net.to(device)
+def test(model, val_loader, device):
+    model.eval()
+    criterion = nn.CrossEntropyLoss()
+    correct, total = 0, 0
+    loss = 0.0
     with torch.no_grad():
-        for data in testloader:
-            images, labels = data[0].to(device), data[1].to(device)
-            outputs = net(images)
-            loss += criterion(outputs, labels).item()
+        for X_batch, y_batch in val_loader:
+            X_batch, y_batch = X_batch.to(device), y_batch.to(device)
+            outputs = model(X_batch)
+            loss += criterion(outputs, y_batch).item()
             _, predicted = torch.max(outputs.data, 1)
-            correct += (predicted == labels).sum().item()
-    accuracy = correct /  len(testloader.dataset)
+            total += y_batch.size(0)
+            correct += (predicted == y_batch).sum().item()
+    accuracy = correct / total
     return loss, accuracy
