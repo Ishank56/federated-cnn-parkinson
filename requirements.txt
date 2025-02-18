@@ -1,4 +1,4 @@
-absl-py==1.2.0
+'absl-py==1.2.0
 aiosignal==1.3.2
 alabaster @ file:///home/ktietz/src/ci/alabaster_1611921544520/work
 altgraph==0.17.4
